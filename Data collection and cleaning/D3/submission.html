@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<!-- cse6242 -->
+
+<!-- run: http-server & -->
+
+<head>
+  <style>
+    .bar{fill:steelblue;}
+    /* define CSS rules  */
+  </style>
+  <meta charset = "utf-8">
+<title>Running Total of TMDb Movies by Year</title></head>
+
+<body>
+
+  <script src="lib/d3/d3.min.js"></script>
+  <script src="lib/d3-dsv/d3-dsv.min.js"></script>
+  <script src="lib/d3-fetch/d3-fetch.min.js"></script>
+
+
+  <script>
+    // define the dimensions and margins for the graph
+    // You must use the Margin Convention: https://poloclub.github.io/cse6242-2022spring-online/hw1/8rEHLaYmr9 _margin_convention.pdf to layout your graph
+  var margin = {top: 30, right: 20, bottom: 60, left: 80},
+      padding = {top: 20, right: 20, bottom: 20, left: 20},
+      outerWidth = 960,
+      outerHeight = 500,
+      paddingdis = 1;
+
+  var innerWidth = outerWidth - padding.left - padding.right,
+      width = innerWidth - margin.left - margin.right,
+      innerHeight = outerHeight - padding.top - padding.bottom;
+      height = innerHeight - margin.top - margin.bottom;
+    // define function to parse time in years format
+	var parseDate = d3.timeParse("%Y"); //-%m-%d
+
+    // create scales x & y for X and Y axis and set their ranges
+    var x = d3.scaleTime()
+        .range([0, width]);
+        
+    var y = d3.scaleLinear()
+        .range([height, 0]);
+        
+
+    // append svg element to the body of the page
+    // set dimensions and position of the svg element
+  var svg = d3.select("body").append("svg")
+        .attr("id", "svg1") 
+        .attr("width", outerWidth)
+        .attr("height", outerHeight)
+        .append("g")
+          .attr("id", "container")
+          .attr("transform", "translate("+ margin.left +"," + margin.top +")")
+
+    // Get the data
+	var pathToCsv = "q3.csv";		// path to csv
+	
+    d3.dsv(",", pathToCsv, function (d) {
+      return { // format data attributes if required
+        //running_total: parseInt(d.running_total),
+        running_total: +d.running_total,
+        year: parseDate(d.year)
+      };
+    }).then(function (data) {
+      console.log(data); // you should see the data in your browser's developer tools console 
+     
+      /* Create bar plot using data from csv */
+      
+      var max_total = d3.max(data, function(d){return d.running_total;});
+      var max_year = d3.max(data, function(d){return d.year});
+      var min_year = d3.min(data, function(d){return d.year});
+      // set the domains of X and Y scales based on data
+      //x.domain(d3.extent(data, function(d) {return d.year;}));
+      x.domain([min_year, max_year]);
+      //x.paddingInner(0.05);
+      y.domain([0, max_total]);
+    var xAxis = d3.axisBottom(x);
+    var yAxis = d3.axisLeft(y);
+      // Add bars to svg - create new elements based on your data
+    var g = svg.append("g")
+          .attr("id", "bars")
+    g.selectAll("rect")
+          .data(data)
+          .enter()
+          .append("rect")
+            .attr("class","bar")
+            .attr("width",width/data.length - paddingdis)
+            .attr("height", function(d) {return height - y(d.running_total)})
+            //.attr('height',height)
+            .attr("color", "steelblue")
+            .style("margin-top", "10px")
+            .attr("x", function(d){return x(d.year)})
+            .attr("y", function(d){return y(d.running_total)});
+            
+      
+      // Add the X Axis
+      svg.append("g")
+        .attr("id", "x_axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+      
+      // Add the text label for X Axis
+      svg.append("text")
+        .attr("id", "x_axis_label")
+        .attr("transform", "translate(" + (width/2) + "," +(height + margin.bottom /2) + ")")
+        .style("text-anchor", "middle")
+        .text( "Year");
+
+      // Add the Y Axis
+      svg.append("g")
+        .attr("id", "y_axis")
+        .call(yAxis);
+      // Add the text label for Y axis
+      svg.append("text")
+        .attr("id", "y_axis_label")
+        .attr("transform", "translate(" + (-margin.left*0.7) + "," + height /2 + ")rotate(-90)")
+        .style("text-anchor", "middle")
+        .text("Running Total");
+    
+      svg.append("text")
+        .attr("id", "title")
+        .attr("transform", "translate(" + (width / 2) + "," +(margin.top/2) + ")")
+        .style("text-anchor", "middle")
+        .style('font-size', '14px')
+        .text("Running Total of TMDb Movies by Year");
+      
+      svg.append("text")
+        .attr("id", "credit")
+        .attr("transform", "translate(" + (width - margin.left/2) + "," +(height + margin.bottom /2) + ")")
+        .style("text-anchor", "left")
+        .attr("color","black")
+        .style('font-size', '10px')
+        .text("chuang440");
+    
+      
+    }).catch(function (error) {
+      console.log(error);
+    });
+
+
+  </script>
+
+</body>
