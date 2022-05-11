@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<!-- To view in browser: python3 -m http.server 8080 & -->
+<!-- Then visit http://0.0.0.0:8080/interactive.html in your browser -->
+<head>
+  <title>Games Rating: 2015 - 2019</title>
+  <meta charset="utf-8">
+  <style type="text/css">
+    .line {
+        fill: none;
+        stroke: #ffab00;
+        stroke-width: 3;
+    }
+    .dot {
+        fill: #ffab00;
+        stroke: #fff;
+    }
+    .axis-grid line {
+      stroke: #def;
+    }
+    
+  </style>
+</head>
+
+<body>
+  <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+  <script type="text/javascript" src="../lib/d3-dsv.min.js"></script>
+
+  <!-- Example hiding an element -->
+  <!-- <g id="" style"display:none;" /> -->
+
+  <!-- Example of styling an element -->
+  <!-- svg_element.style()-->
+
+  <script>
+    // define the dimensions and margins for the line chart
+    // Use the same Margin Convention from HW1 Q3: https://poloclub.github.io/cse6242-2022spring-online/hw1/8rEHLaYmr9 _margin_convention.pdf to layout your graph
+  var margin = {top: 60, right: 50, bottom: 60, left: 100},
+    padding = {top: 20, right: 20, bottom: 20, left: 20},
+    outerWidth = 960,
+    outerHeight = 500,
+    paddingdis = 1;
+
+  var innerWidth = outerWidth - padding.left - padding.right,
+    width = innerWidth - margin.left - margin.right,
+    innerHeight = outerHeight - padding.top - padding.bottom;
+    height = innerHeight - margin.top - margin.bottom;
+    barWidth = 500,
+    barHeight = 300;
+
+    // define the dimensions and margins for the bar chart
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+
+    // append svg element to the body of the page
+    // set dimensions and position of the svg element
+    let svg = d3
+      .select("body")
+      .append("svg")
+      .attr("id", "line_chart")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("id", "container")
+      .attr("transform",
+        "translate(" + margin.left + "," + margin.top + ")");
+        
+        
+
+    // Fetch the data
+  var keyList =['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  var yearRank = [0, 1, 2, 3, 4];
+  var yearList = ['2015', '2016', '2017', '2018', '2019'];
+	var pathToCsv = "average-rating.csv";
+  d3.dsv(",", pathToCsv, function(d) {
+  return {
+    name: d.name,
+    year: +d.year,
+    rating: Math.floor(+d.average_rating),
+    users: +d.users_rated
+    }
+    }).then(function (data) {
+      var filteredData = data.filter(function(d) {if(d.year >= 2015 && d.year <= 2019) { return d;}});
+      var nestData = d3.nest()
+        .key(function(d) {return d.year;}).sortKeys(d3.ascending)
+        .key(function(d) {return d.rating;}).sortKeys(d3.ascending)
+        .rollup(function(ratings) {return ratings.length;})
+        .entries(filteredData)
+      nestData.map(function(d) {
+        keys=d.values.map(function(d){return d.key});
+        keyList.forEach(function(c){
+        if(!keys.includes(c)) {d.values.push({key: c, value: 0});};})
+        d.values.sort(function(a,b){return parseFloat(a.key) - parseFloat(b.key)})
+      })
+
+      var nestData2 = d3.nest()
+        .key(function(d) {return d.year;})
+        //.rollup(function(ratings) {return ratings.length;})
+        .entries(filteredData)
+      
+      console.log(filteredData); // you should see the data in your browser's developer tools console
+      console.log(nestData2);
+      /* Create bar plot using data from csv */
+  var x = d3.scaleLinear()
+    .domain([(0), d3.max(nestData, function(c) {
+      return d3.max(c.values, function(d) {return d.key;});
+    })])
+    .range([0, width]);
+    
+  var y = d3.scaleLinear()
+    .range([height, 0])
+    .domain([(0), d3.max(nestData, function(c) {
+      return d3.max(c.values, function(d) {return d.value;});
+    })]);
+  
+  var xAxis = d3.axisBottom()
+      //.tickFormat(d3.timeFormat('%b %y'))
+      .scale(x);
+
+  const line = d3.line()
+      .x(function(d) {return x(d.key)})
+      .y(function(d) {return y(d.value)});
+
+  var plot1 = d3.select("#container")
+      .append("g")
+        .attr("id", "lines")
+
+  var lines = plot1.selectAll("lines")
+    .data(nestData)
+    .enter()
+    .append("g")
+      .attr("id","line")
+
+  lines.append("path")
+    .attr("d", function(d) {return line(d.values);})
+    .style("stroke", function(d) {return color(d.key);})
+    .style("stroke-width", 1.5)
+    .style("fill", "none");
+
+  svg.append("g")
+      .attr("id", "x-axis-lines")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+  
+  svg.append("g")
+      .attr("id", "y-axis-lines")
+      .call(d3.axisLeft(y))
+  
+  var circles = svg.append('g')
+      .attr("id", "circles")
+
+  yearRank.forEach(function(c) {
+  var dots = circles.selectAll("dot")
+      .data(nestData[c].values)
+      .enter()
+      .append("circle")
+        .attr('class','dot')
+        .attr('cx',function(d){return x(d.key)})
+        .attr('cy',function(d){return y(d.value)})
+        .attr("r", 5)
+        .style('fill', function(d) {return color(nestData[c].key);})
+        .on("mouseover", function(d) {return mousemove(d,c);})
+        .on("mouseout", mouseout);
+    });
+  svg.append("text")
+      .attr("id", "line_chart_title")
+      .attr("transform", "translate(" + (width / 2) + "," +(-margin.top*0.3) + ")")
+      .style("text-anchor", "middle")
+      .style('font-size', '16px')
+      .style('font-weight',600)
+      .text("Board games by Rating 2015-2019");
+      
+  svg.append("text")
+      .attr("id", "credit")
+      .attr("transform", "translate(" + (width/2) + "," + (margin.top*0.1) + ")")
+      .style("text-anchor", "left")
+      .attr("color","black")
+      .style('font-size', '14px')
+      .text("chuang440");
+
+  var legendID = svg.append('g')
+      .attr('id','legend')
+      .append('g')
+      
+  var legend = legendID.selectAll("#legenddot")
+      .data(yearList)
+      .enter()
+      .append('circle')
+        .attr('class','legenddot')
+        .attr('cx', width - margin.right/2)
+        .attr('cy', function(d,i) {return i*18;} )
+        .attr('r', 5)
+        .style('fill', function(d) {return color(d);})
+  var labels = legendID.selectAll("#legendlabel")
+      .data(yearList)
+      .enter()
+      .append('text')
+      .attr('class','legendlabel')
+      .attr('x', width -margin.right/2 + 10)
+      .attr('y',function(d,i) {return i*18;})
+      .style("text-anchor", "left")
+      .style("dominant-baseline", "central")
+      .attr('fill','black')
+      .style('font-size', '14px')
+      .text(function(d) {return d;})
+      
+  svg.append("text")
+      .attr("x", width/2)
+      .attr("y", height + margin.bottom/2)
+      .attr('fill','black')
+      .style("text-anchor", "middle")
+      .style('font-size', '14px')
+      .text( "Rating");
+      
+  svg.append("text")
+      .attr("transform", "translate(" + (-margin.left*0.5) + "," + height /2 + ")rotate(-90)")
+      .style("text-anchor", "middle")
+      .attr('fill','black')
+      .style('font-size', '14px')
+      .text( "Count");
+
+  function mousemove(d, c) {
+    d3.select(event.currentTarget).attr('r', 15);
+    var actualYear = yearList[c];
+    var actualRating = d.key;
+    if (d.value > 0) {
+    var selectedData = filteredData.filter(function(d) {if(d.year == actualYear && d.rating == actualRating) { return d;}})
+                                .sort(function(a,b){return parseFloat(b.users) - parseFloat(a.users)})
+                                .filter(function(d,i) {if(i < 5) return d;})
+                                .sort(function(a,b){return parseFloat(b.users) - parseFloat(a.users)});
+    console.log(selectedData);
+    var barTitle = d3
+        .select("body")
+        .append("div")
+        .attr("id", "bar_chart_title")
+        .text(function(d) {return "Top 5 Most Rated Games of " + actualYear +" with Rating " + actualRating;})
+        .attr("transform", "translate(" + (barWidth / 2) + "," +(-margin.top*0.2) + ")")
+        .style("text-anchor", "middle")
+        .style('font-size', '16px')
+        .style('font-weight', 600)
+
+    let svg2 = d3
+        .select("body")
+        .append("svg")
+        .attr("id", "bar_chart")
+        .attr("width", barWidth + margin.left + margin.right)
+        .attr("height", barHeight + margin.top + margin.bottom)
+        .append('g')
+        .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");      
+    
+    
+    var xb = d3.scaleLinear()
+      .domain([(0), d3.max(selectedData, function(d) {
+        return d.users;})])
+      .range([0, barWidth]);
+    console.log(d3.max(selectedData, function(d) {
+        return d.users;}))  
+    var yb = d3.scaleBand()
+      .range([0, barHeight])
+      .domain(selectedData.map(function(d) { return d.name;}));
+    
+    var yAxisb = d3.axisLeft()
+        .scale(yb)
+        .tickFormat(function(d) {return d.substring(0, 10);})
+ 
+    //var bars = d3.select("#bar_chart")
+    var bars= svg2.append("g")
+        .attr("id", "bars")
+
+    bars.selectAll("rect")
+        .data(selectedData)
+        .enter()
+        .append("rect")
+          .attr("class","bar")
+          .attr("width",function(d) {return xb(d.users)})
+          .attr("height", barHeight/5 - padding.left/1.5)
+          .attr("fill", "purple")
+          .style("margin-top", "10px")
+          .attr("x", 0 + paddingdis)
+          .attr("y", function(d){return yb(d.name) + padding.left/3;})
+          
+    const xAxisGrid = d3.axisBottom(xb).tickSize(-barHeight);
+
+    svg2.append("g")
+        .attr("id", "x-axis-bars")
+        .attr("transform", "translate(0," + barHeight + ")")
+        .call(d3.axisBottom().scale(xb))
+        .call(xAxisGrid)
+    
+    
+
+    svg2.append("g")
+        .attr("id", "y-axis-bars")
+        .call(yAxisb)
+
+    svg2.append("text")
+        .attr("id", "bar_chart_title")
+        .attr("transform", "translate(" + (barWidth / 2) + "," +(-margin.top*0.2) + ")")
+        .style("text-anchor", "middle")
+        .style('font-size', '16px')
+        .style('font-weight', 600)
+        //.text(function(d) {return "Top 5 Most Rated Games of " + actualYear +" with Rating " + actualRating;});
+        
+    svg2.append("text")
+        .attr("id", "bar_x_axis_label")
+        .attr("x", barWidth/2)
+        .attr("y", barHeight + margin.bottom/1.5)
+        .attr('fill','black')
+        .style("text-anchor", "middle")
+        .style('font-size', '14px')
+        .text( "Number of users");
+        
+    svg2.append("text")
+        .attr("id", "bar_y_axis_label")
+        .attr("transform", "translate(" + (-margin.left*0.7) + "," + barHeight /2 + ")rotate(-90)")
+        .style("text-anchor", "middle")
+        .attr('fill','black')
+        .style('font-size', '14px')
+        .text( "Games");
+    }
+
+  }
+  function mouseout(d) {
+    d3.select(event.currentTarget).attr('r', 5)
+    d3.selectAll('#bar_chart').remove();
+    d3.selectAll("#bar_chart_title").remove();
+    /**
+    svg2.selectAll("#x-axis-bars").remove();
+    svg2.selectAll("#y-axis-bars").remove();
+    
+    svg2.selectAll(".bar").remove();
+    svg2.selectAll("#bar_x_axis_label").remove();
+    svg2.selectAll("#bar_y_axis_label").remove();
+    */
+  }
+
+    }).catch(function (error) {
+      console.log(error);
+    });
+  
+
+  </script>
+
+</body>
